@@ -8,10 +8,12 @@ WS = re.compile(r'[\u0000-\u0020\u007f-\u00a0\u1680\u2000-\u200b\u2028\u2029\u20
 URL_RE = re.compile(r'^([A-Za-z][A-Za-z0-9+.\-]*)://([^/?#]*)([^?#]*)(?:\?([^#]*))?(?:#(.*))?$')
 SCHEME_RE = re.compile(r'^[A-Za-z][A-Za-z0-9+.\-]*://')
 BAD_PCT = re.compile(r'%(?![0-9a-fA-F]{2})')
-IPV4_RE = re.compile(r'^[0-9]{1,3}(\.[0-9]{1,3}){3}$')
-IP_OBFUSCATED_RE = re.compile(r'^(0x[0-9a-f]+|[0-9]+)$')
+CANON_IPV4 = re.compile(r'^(0|[1-9][0-9]{0,2})(\.(0|[1-9][0-9]{0,2})){3}$')
+NUMERIC_LABEL = re.compile(r'^(0x[0-9a-f]*|[0-9]+)$')
 LIST_KEYS = ('global_params', 'global_prefixes', 'shorteners', 'redirect_path_hints')
 MAX_DEPTH = 3
+MAX_STR = 200
+MAX_ITEMS = 2000
 
 MESSAGES = {
     'shortener': 'This is a URL shortener. Link Guard does not contact it, so the destination cannot be confirmed.',
@@ -34,19 +36,31 @@ def load_rules(path=None):
         return json.load(f)
 
 
+def _strings(name, value, nonempty=False):
+    if (not isinstance(value, list) or (nonempty and not value) or len(value) > MAX_ITEMS
+            or not all(isinstance(x, str) and 0 < len(x) <= MAX_STR for x in value)):
+        raise ValueError(name + ' must be a list of non-empty strings')
+
+
 def validate_custom(custom):
     if not isinstance(custom, dict):
         raise ValueError('custom rules must be an object')
     for key in LIST_KEYS + ('keep_params',):
-        value = custom.get(key, [])
-        if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
-            raise ValueError(key + ' must be a list of strings')
+        _strings(key, custom.get(key, []))
     domains = custom.get('domains', [])
-    if not isinstance(domains, list):
+    if not isinstance(domains, list) or len(domains) > MAX_ITEMS:
         raise ValueError('domains must be a list')
     for d in domains:
-        if not isinstance(d, dict) or not isinstance(d.get('hosts'), list) or not d['hosts']:
-            raise ValueError('each domain entry needs a hosts list')
+        if not isinstance(d, dict):
+            raise ValueError('each domain entry must be an object')
+        _strings('hosts', d.get('hosts'), nonempty=True)
+        for key in ('strip', 'strip_prefixes', 'path_strip'):
+            _strings(key, d.get(key, []))
+        u = d.get('unwrap')
+        if u is not None:
+            if not isinstance(u, dict) or not isinstance(u.get('path_prefix'), str):
+                raise ValueError('unwrap needs a path_prefix')
+            _strings('unwrap params', u.get('params'), nonempty=True)
 
 
 def merge_rules(base, custom):
@@ -57,6 +71,13 @@ def merge_rules(base, custom):
     out['keep_params'] = list(base.get('keep_params', [])) + [x.lower() for x in custom.get('keep_params', [])]
     out['domains'] = list(base.get('domains', [])) + list(custom.get('domains', []))
     return out
+
+
+def normalize_slashes(s):
+    """Browsers treat backslash as a slash in http(s) URLs, up to the query or fragment."""
+    m = re.search(r'[?#]', s)
+    i = m.start() if m else len(s)
+    return s[:i].replace('\\', '/') + s[i:]
 
 
 def decode_name(s):
@@ -103,7 +124,7 @@ def split_authority(auth):
         if port and not re.match(r'^[0-9]+$', port):
             return None
     host = host.lower().rstrip('.')
-    if not host:
+    if not host or '\\' in host:
         return None
     return {'host': host, 'userinfo': userinfo}
 
@@ -142,10 +163,10 @@ def host_flags(parts, rules):
     if host.startswith('['):
         if host != '[::1]':
             flags.append('ip_host')
-    elif IPV4_RE.match(host):
+    elif CANON_IPV4.match(host):
         if not is_private_ipv4(host):
             flags.append('ip_host')
-    elif IP_OBFUSCATED_RE.match(host):
+    elif NUMERIC_LABEL.match(host.rsplit('.', 1)[-1]):
         flags.append('ip_host')
     for s in rules.get('shorteners', []):
         if host_matches(host, s):
@@ -173,7 +194,7 @@ def find_redirect_param(parts, rules):
         value = decode_value(seg.split('=', 1)[1])
         if value is None:
             continue
-        target = parse(value) if re.match(r'^https?://', value, re.I) else None
+        target = parse(normalize_slashes(value)) if re.match(r'^https?:', value, re.I) else None
         if target and target['host'] != parts['host']:
             return target['host']
     return None
@@ -191,7 +212,7 @@ def find_unwrap(parts, rules):
             for seg in segments(parts['query']):
                 if '=' in seg and seg_name(seg).lower() == name.lower():
                     value = decode_value(seg.split('=', 1)[1])
-                    if value is not None and re.match(r'^https?://', value, re.I):
+                    if value is not None and re.match(r'^https?:', value, re.I):
                         return value, parts['host']
     return None
 
@@ -240,12 +261,21 @@ def invalid(original, reason):
     return result('invalid', original, original, None, [], [], reason)
 
 
+def safe_analyze(text, rules, assume_https=False):
+    """Use this from the GUI and clipboard watcher: a bad rule can never crash or hang the caller."""
+    try:
+        return analyze(text, rules, assume_https)
+    except Exception:
+        return invalid(text if isinstance(text, str) else '', 'This link could not be analysed.')
+
+
 def analyze(text, rules, assume_https=False, _depth=0):
     s = text.strip() if isinstance(text, str) else ''
     if not s:
         return invalid(s, 'No URL was provided.')
     if WS.search(s):
         return invalid(s, 'The URL contains spaces or control characters.')
+    s = normalize_slashes(s)
     if assume_https and not SCHEME_RE.match(s):
         s = 'https://' + s
     parts = parse(s)
@@ -259,7 +289,7 @@ def analyze(text, rules, assume_https=False, _depth=0):
     if _depth < MAX_DEPTH:
         unwrapped = find_unwrap(parts, rules)
         if unwrapped:
-            inner = analyze(unwrapped[0], rules, False, _depth + 1)
+            inner = analyze(normalize_slashes(unwrapped[0]), rules, False, _depth + 1)
             if inner['status'] != 'invalid':
                 removed = [{'name': 'redirect wrapper (' + unwrapped[1] + ')',
                             'reason': 'Replaced by the destination encoded in the link'}] + inner['removed']
@@ -278,11 +308,15 @@ def analyze(text, rules, assume_https=False, _depth=0):
             removed.append({'name': name, 'reason': reason})
 
     path = parts['path']
-    for pattern in path_strip:
-        m = re.search(pattern, path)
-        if m:
-            note('path ' + m.group(0).strip('/'), 'Tracking path segment')
-            path = path[:m.start()] + path[m.end():]
+    for prefix in path_strip:
+        segs = path.split('/')
+        idx = len(segs) - 1
+        if segs[idx] == '' and idx > 0:
+            idx -= 1
+        if idx > 0 and segs[idx].lower().startswith(prefix.lower()):
+            note('path ' + segs[idx], 'Tracking path segment')
+            del segs[idx]
+            path = '/'.join(segs)
 
     query = parts['query']
     changed_query = False
