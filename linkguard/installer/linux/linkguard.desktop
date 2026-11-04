@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Link Guard
+Comment=Strips tracking junk from links
+Exec=LinkGuard
+Icon=linkguard
+Terminal=false
+Categories=Utility;Network;
