@@ -27,6 +27,10 @@ def main(argv=None):
             print('Link Guard was removed.')
             return 0
         if not args.run and not selfinstall.running_from_installed():
+            if selfinstall.old_version_present():
+                if not selfinstall.ask_remove_old():
+                    return 0
+                selfinstall.remove_old()
             selfinstall.install(appimage)
             selfinstall.start_installed()
             return 0

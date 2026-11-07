@@ -18,6 +18,10 @@ REASONS = {
     'ip_host': 'raw IP address',
     'userinfo': 'name@ in front of the site',
     'encoded_host': 'encoded site name',
+    'mixed_script': 'mixed alphabets in the site name',
+    'lookalike_chars': 'lookalike letters in the site name',
+    'invisible_chars': 'invisible characters in the link',
+    'odd_host_chars': 'unusual characters in the site name',
 }
 
 

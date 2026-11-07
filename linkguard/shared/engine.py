@@ -1,6 +1,7 @@
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -11,6 +12,11 @@ BAD_PCT = re.compile(r'%(?![0-9a-fA-F]{2})')
 CANON_IPV4 = re.compile(r'^(0|[1-9][0-9]{0,2})(\.(0|[1-9][0-9]{0,2})){3}$')
 NUMERIC_LABEL = re.compile(r'^(0x[0-9a-f]*|[0-9]+)$')
 LIST_KEYS = ('global_params', 'global_prefixes', 'shorteners', 'redirect_path_hints')
+HAN_SCRIPTS = ('CJK', 'HIRAGANA', 'KATAKANA', 'BOPOMOFO')
+LOOKALIKES = frozenset(
+    '\u0430\u0435\u043e\u0440\u0441\u0443\u0445\u0456\u0458\u0455\u04bb\u0501\u051b\u051d\u04cf'
+    '\u0261\u03bf\u03bd\u03b9\u03b1\u03c1\u0131\u0585\u0578\u057d\u0570'
+)
 MAX_DEPTH = 3
 MAX_STR = 200
 MAX_ITEMS = 2000
@@ -22,6 +28,10 @@ MESSAGES = {
     'ip_host': 'The link points to an IP address instead of a host name.',
     'userinfo': 'The link contains a user name before the host, which can disguise the real destination.',
     'encoded_host': 'The host name contains percent-encoded characters.',
+    'mixed_script': 'A part of the host name mixes letters from different alphabets, a common trick to imitate another site.',
+    'lookalike_chars': 'The host name contains characters that look like ordinary Latin letters but are not.',
+    'invisible_chars': 'The link contains invisible or text-direction control characters.',
+    'odd_host_chars': 'The host name contains characters that are not normally used in site names.',
 }
 
 
@@ -151,6 +161,53 @@ def is_private_ipv4(host):
             (p[0] == 172 and 16 <= p[1] <= 31) or (p[0] == 169 and p[1] == 254))
 
 
+def decode_label(label):
+    label = unquote(label, errors='replace')
+    if label.startswith('xn--'):
+        try:
+            return label[4:].encode('ascii').decode('punycode')
+        except (UnicodeError, ValueError):
+            return label
+    return label
+
+
+def script_of(ch):
+    name = unicodedata.name(ch, '')
+    word = name.split(' ', 1)[0] if name else 'UNKNOWN'
+    return 'HAN' if word in HAN_SCRIPTS else word
+
+
+def char_flags(parts):
+    host = parts['host']
+    flags = []
+    if host.startswith('['):
+        labels = []
+    else:
+        labels = [decode_label(x) for x in host.split('.')]
+
+    for label in labels:
+        scripts = {script_of(c) for c in label if c.isalpha()}
+        if len(scripts) > 1 and scripts != {'LATIN', 'HAN'}:
+            flags.append('mixed_script')
+            break
+
+    unicode_host = ''.join(labels)
+    if any(c in LOOKALIKES for c in unicode_host) or (
+            re.search(r'[^\x00-\x7f]', unicode_host) and unicodedata.normalize('NFKC', unicode_host) != unicode_host):
+        flags.append('lookalike_chars')
+
+    everything = unquote(''.join(x or '' for x in (
+        parts['userinfo'], host, parts['path'], parts['query'], parts['fragment'])), errors='replace')
+    controllable = unquote(host + parts['path'], errors='replace')
+    if (any(unicodedata.category(c) in ('Cf', 'Co', 'Cs') for c in everything)
+            or any(unicodedata.category(c) == 'Cc' for c in controllable)):
+        flags.append('invisible_chars')
+
+    if labels and any(ord(c) < 128 and not (c.isalnum() or c in '.-%') for c in host):
+        flags.append('odd_host_chars')
+    return flags
+
+
 def host_flags(parts, rules):
     host = parts['host']
     flags = []
@@ -172,6 +229,9 @@ def host_flags(parts, rules):
         if host_matches(host, s):
             flags.append('shortener')
             break
+    for code in char_flags(parts):
+        if code not in flags:
+            flags.append(code)
     return flags
 
 

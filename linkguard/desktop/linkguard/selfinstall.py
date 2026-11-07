@@ -2,6 +2,7 @@ import os
 import shutil
 import stat
 import subprocess
+import time
 from pathlib import Path
 
 from . import autostart, ipc, paths
@@ -28,6 +29,33 @@ def icon_file():
 def running_from_installed():
     current = os.environ.get('APPIMAGE')
     return bool(current) and os.path.realpath(current) == os.path.realpath(str(installed_path()))
+
+
+def old_version_present():
+    return installed_path().exists() or entry_file().exists()
+
+
+def ask_remove_old():
+    try:
+        import tkinter
+        from tkinter import messagebox
+        root = tkinter.Tk()
+        root.withdraw()
+        try:
+            return messagebox.askyesno(
+                'Link Guard',
+                'An older version of Link Guard was found in:\n' + str(installed_path().parent)
+                + '\n\nDelete it and install the new version?',
+                parent=root)
+        finally:
+            root.destroy()
+    except Exception:
+        return True
+
+
+def remove_old():
+    uninstall()
+    time.sleep(1)
 
 
 def install(appimage):

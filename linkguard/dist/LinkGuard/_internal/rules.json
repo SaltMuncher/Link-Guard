@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "global_params": [
+    "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "utm_id",
+    "utm_name", "utm_brand", "utm_social", "utm_social-type", "utm_creative_format",
+    "utm_marketing_tactic", "utm_source_platform", "utm_cid",
+    "fbclid", "gclid", "gclsrc", "dclid", "gbraid", "wbraid", "gad_source", "gad_campaignid",
+    "srsltid", "msclkid", "twclid", "ttclid", "li_fat_id", "yclid", "rdt_cid", "epik",
+    "_openstat", "igshid", "igsh", "mc_cid", "mc_eid", "mkt_tok", "vero_id", "vero_conv",
+    "oly_enc_id", "oly_anon_id", "_hsenc", "_hsmi", "__hssc", "__hstc", "__hsfp",
+    "hsctatracking", "wickedid", "ef_id", "s_cid", "_ga", "_gl", "_branch_match_id",
+    "_branch_referrer", "irclickid", "cjevent", "cjdata", "rb_clickid", "elqtrackid",
+    "fb_action_ids", "fb_action_types", "fb_ref", "fb_source", "action_object_map",
+    "action_type_map", "action_ref_map", "pk_campaign", "pk_kwd", "pk_source",
+    "pk_medium", "pk_content", "piwik_campaign", "piwik_kwd", "mtm_campaign",
+    "mtm_kwd", "mtm_source", "mtm_medium", "mtm_content", "ranmid", "raneaid", "ransiteid"
+  ],
+  "global_prefixes": ["utm_", "hsa_", "__cft__"],
+  "shorteners": [
+    "bit.ly", "bitly.com", "t.co", "tinyurl.com", "goo.gl", "ow.ly", "is.gd", "v.gd",
+    "buff.ly", "rebrand.ly", "cutt.ly", "shorturl.at", "t.ly", "tiny.cc", "lnkd.in",
+    "fb.me", "amzn.to", "amzn.eu", "a.co", "apple.co", "spoti.fi", "g.co", "goo.gle",
+    "wp.me", "dlvr.it", "ift.tt", "trib.al", "bl.ink", "soo.gd", "s.id", "rb.gy",
+    "qr.ae", "adf.ly", "bc.vc", "ouo.io", "shorte.st", "clck.ru", "vk.cc", "lnk.to",
+    "snip.ly", "po.st", "mcaf.ee", "pin.it", "bit.do", "su.pr", "ity.im", "cli.re",
+    "tr.ee", "kutt.it", "1drv.ms", "ln.is", "x.co", "short.io", "shorturl.com"
+  ],
+  "redirect_path_hints": [
+    "redirect", "redir", "out", "go", "away", "click", "url", "link", "jump", "exit",
+    "outgoing", "bounce", "forward", "fwd", "external", "r", "l"
+  ],
+  "domains": [
+    {"hosts": ["google.*"], "strip": ["ved", "ei", "sxsrf", "gs_lcp", "gs_lp", "sclient", "uact", "oq", "aqs", "gws_rd"]},
+    {"hosts": ["google.*"], "unwrap": {"path_prefix": "/url", "params": ["q", "url"]}},
+    {"hosts": ["youtube.com", "youtu.be", "music.youtube.com"], "strip": ["si", "feature", "pp", "ab_channel"]},
+    {"hosts": ["youtube.com"], "unwrap": {"path_prefix": "/redirect", "params": ["q"]}},
+    {"hosts": ["open.spotify.com", "spotify.com"], "strip": ["si", "nd", "dlsi", "context"]},
+    {"hosts": ["amazon.*"], "strip": ["pd_rd_r", "pd_rd_w", "pd_rd_wg", "pd_rd_i", "pf_rd_r", "pf_rd_p", "pf_rd_s", "pf_rd_t", "pf_rd_i", "pf_rd_m", "qid", "sr", "crid", "sprefix", "ref", "ref_", "tag", "linkcode", "linkid", "content-id", "dib", "dib_tag", "keywords"], "path_strip": ["/ref=[^/?#]*$"]},
+    {"hosts": ["facebook.com", "m.facebook.com", "web.facebook.com"], "strip": ["__tn__", "refsrc", "_rdr", "comment_tracking", "notif_id", "notif_t", "ref", "mibextid", "sfnsn"]},
+    {"hosts": ["l.facebook.com", "lm.facebook.com"], "unwrap": {"path_prefix": "/l.php", "params": ["u"]}},
+    {"hosts": ["facebook.com", "m.facebook.com"], "unwrap": {"path_prefix": "/flx/warn", "params": ["u"]}},
+    {"hosts": ["l.instagram.com"], "unwrap": {"path_prefix": "/", "params": ["u"]}},
+    {"hosts": ["instagram.com"], "strip": ["img_index"]},
+    {"hosts": ["twitter.com", "x.com"], "strip": ["s", "t", "ref_src", "ref_url", "cn"]},
+    {"hosts": ["linkedin.com"], "strip": ["trk", "trkinfo", "originalsubdomain", "lipi", "midtoken", "midsig", "trackingid", "refid", "eid"]},
+    {"hosts": ["reddit.com", "old.reddit.com"], "strip": ["share_id", "ref", "ref_source", "$deep_link", "correlation_id"]},
+    {"hosts": ["out.reddit.com"], "unwrap": {"path_prefix": "/", "params": ["url"]}},
+    {"hosts": ["tiktok.com"], "strip": ["_t", "_r", "_d", "is_from_webapp", "sender_device", "sender_web_id", "share_app_id", "share_item_id", "share_link_id", "social_sharing", "tt_from", "u_code", "refer", "checksum", "timestamp"]},
+    {"hosts": ["ebay.*"], "strip": ["_trkparms", "_trksid", "amdata", "campid", "customid", "toolid", "mkcid", "mkevt", "mkrid"]},
+    {"hosts": ["aliexpress.com"], "strip": ["spm", "scm", "scm_id", "aff_platform", "aff_trace_key", "algo_pvid", "algo_exp_id", "btsid", "ws_ab_test", "terminal_id", "sk"]},
+    {"hosts": ["medium.com"], "strip": ["source", "sk", "gi"]},
+    {"hosts": ["substack.com"], "strip": ["r", "triedredirect"]},
+    {"hosts": ["nytimes.com"], "strip": ["smid", "smtyp", "referringsource", "ugrp", "pgtype"]},
+    {"hosts": ["bing.com"], "strip": ["form", "qs", "sc", "sp", "cvid", "pq", "ghsh", "ghacc", "ghpl"]},
+    {"hosts": ["duckduckgo.com"], "unwrap": {"path_prefix": "/l/", "params": ["uddg"]}},
+    {"hosts": ["away.vk.com"], "unwrap": {"path_prefix": "/away.php", "params": ["to"]}},
+    {"hosts": ["steamcommunity.com"], "unwrap": {"path_prefix": "/linkfilter", "params": ["u", "url"]}},
+    {"hosts": ["slack-redir.net"], "unwrap": {"path_prefix": "/link", "params": ["url"]}},
+    {"hosts": ["safelinks.protection.outlook.com"], "unwrap": {"path_prefix": "/", "params": ["url"]}},
+    {"hosts": ["t.umblr.com"], "unwrap": {"path_prefix": "/redirect", "params": ["z"]}}
+  ]
+}
