@@ -1,0 +1,7 @@
+build/
+dist/
+.buildenv/
+__pycache__/
+*.pyc
+*.AppImage
+*.exe
